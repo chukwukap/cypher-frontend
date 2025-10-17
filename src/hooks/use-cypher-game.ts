@@ -6,7 +6,6 @@ import {
   useReadContract,
   useWaitForTransactionReceipt,
   useSendCalls,
-  useClient,
 } from "wagmi";
 import { encodeFunctionData } from "viem";
 import { CYPHER_CONTRACT_ADDRESS, CYPHER_ABI } from "@/lib/contract";
@@ -17,7 +16,6 @@ import { toast } from "sonner";
 
 export function useCypherGame(allKOLs: KOL[] = []) {
   const { address } = useAccount();
-  const client = useClient();
 
   const [gameId, setGameId] = useState<bigint | null>(null);
   const [playerStatus, setPlayerStatus] = useState<PlayerStatus>("EMPTY");
@@ -196,22 +194,14 @@ export function useCypherGame(allKOLs: KOL[] = []) {
           args: [guess.id],
         });
 
-        const txHash = await client!.transport.request({
-          method: "eth_sendTransaction",
-          params: [
-            {
-              to: CYPHER_CONTRACT_ADDRESS,
-              data: calldata,
-            },
-          ],
+        const result = await sendCallsAsync({
+          calls: [{ to: CYPHER_CONTRACT_ADDRESS, data: calldata }],
         });
-        setPendingTxHash(txHash as `0x${string}`);
+
+        console.log("result", result);
 
         toast.dismiss();
         toast.success("Guess submitted!");
-
-        // Optimistically update attempts immediately.
-        setAttempts((prev) => prev + 1);
 
         const target = assignedKOLHash
           ? allKOLs.find((k) => k.id === assignedKOLHash)
@@ -220,9 +210,6 @@ export function useCypherGame(allKOLs: KOL[] = []) {
           const hints = generateHints(guess, target);
           setGuessesAndHints((prev) => [...prev, { guess, hints }]);
         }
-
-        // Allow further guesses without blocking UI.
-        setIsLoading(false);
       } catch (err) {
         console.error("submitGuess error", err);
         toast.dismiss();
@@ -233,7 +220,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         setIsLoading(false);
       }
     },
-    [assignedKOLHash, allKOLs, address, client]
+    [sendCallsAsync, assignedKOLHash, allKOLs, address]
   );
 
   const claimReward = useCallback(async () => {

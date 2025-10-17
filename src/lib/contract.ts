@@ -1,5 +1,5 @@
 export const CYPHER_CONTRACT_ADDRESS =
-  "0x3e1044F4EA99b562B32725479424E9F1b650652f" as const; // TODO: Replace with actual deployed contract address
+  "0x0D0877adc36E506A9328C100fdae71D743454242" as const; // TODO: Replace with actual deployed contract address
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const CYPHER_ABI = [
@@ -8,6 +8,20 @@ export const CYPHER_ABI = [
     name: "FINALIZER_FEE_BPS",
     inputs: [],
     outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "kolCount",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "kolHashes",
+    inputs: [{ name: "index", type: "uint256" }],
+    outputs: [{ type: "bytes32" }],
     stateMutability: "view",
   },
   {

@@ -35,7 +35,7 @@ export default function Home() {
     startGame,
     submitGuess,
     claimReward,
-  } = useCypherGame();
+  } = useCypherGame(allKOLs);
 
   // Fetch KOL data on mount
   useEffect(() => {

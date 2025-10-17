@@ -7,15 +7,16 @@ import {
   useWriteContract,
   useWatchContractEvent,
   useWaitForTransactionReceipt,
+  useSendCalls,
 } from "wagmi";
+import { encodeFunctionData } from "viem";
 import { CYPHER_CONTRACT_ADDRESS, CYPHER_ABI } from "@/lib/contract";
 import { USDC, erc20Abi } from "@/lib/usdc";
 import type { KOL, PlayerStatus, GuessWithHints } from "@/lib/types";
 import { generateHints } from "@/lib/hint-generator";
-import { getTodayTarget } from "@/lib/kol-data";
 import { toast } from "sonner";
 
-export function useCypherGame() {
+export function useCypherGame(allKOLs: KOL[] = []) {
   const { address } = useAccount();
   const [gameId, setGameId] = useState<bigint | null>(null);
   const [playerStatus, setPlayerStatus] = useState<PlayerStatus>("EMPTY");
@@ -26,6 +27,9 @@ export function useCypherGame() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<`0x${string}` | null>(
+    null
+  );
+  const [assignedKOLHash, setAssignedKOLHash] = useState<`0x${string}` | null>(
     null
   );
 
@@ -71,6 +75,7 @@ export function useCypherGame() {
 
   // Contract write hooks
   const { writeContractAsync } = useWriteContract();
+  const { sendCallsAsync } = useSendCalls();
 
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -87,16 +92,17 @@ export function useCypherGame() {
 
   useEffect(() => {
     if (playerData) {
-      const [statusData, , , , , attemptsData] = playerData as [
-        number,
-        string,
+      const [statusData, assignedHash, , , , attemptsData] = playerData as [
+        number, // status
+        `0x${string}`, // assignedKOLHash
+        bigint, // depositAmount
         bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint
+        bigint, // startTime
+        bigint, // endTime
+        bigint // finalScore
       ];
       setAttempts(Number(attemptsData));
+      setAssignedKOLHash(assignedHash);
 
       const statusMap: Record<number, PlayerStatus> = {
         0: "EMPTY",
@@ -110,13 +116,13 @@ export function useCypherGame() {
 
   useEffect(() => {
     if (finalizedData !== undefined) {
-      setIsFinalized(finalizedData as boolean);
+      setIsFinalized(finalizedData);
     }
   }, [finalizedData]);
 
   useEffect(() => {
     if (winningsData !== undefined) {
-      setWinnings(winningsData as bigint);
+      setWinnings(winningsData);
     }
   }, [winningsData]);
 
@@ -154,33 +160,45 @@ export function useCypherGame() {
       setError(null);
 
       try {
-        toast.loading("Approving USDC...");
         const amountWei = BigInt(Math.floor(usdcAmount * 10 ** USDC.decimals));
-        await writeContractAsync({
-          address: USDC.address,
+
+        // Batch approve + startGame using useSendCalls
+        const approveCalldata = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
           args: [CYPHER_CONTRACT_ADDRESS, amountWei],
         });
-
-        toast.dismiss();
-        toast.loading("Starting game...");
-
-        const hash = await writeContractAsync({
-          address: CYPHER_CONTRACT_ADDRESS,
+        const startGameCalldata = encodeFunctionData({
           abi: CYPHER_ABI,
           functionName: "startGame",
-          args: [amountWei, firstGuess.name],
+          args: [amountWei, firstGuess.id],
         });
 
-        setPendingTxHash(hash);
-        toast.dismiss();
-        toast.loading("Confirming transaction...");
+        toast.loading("Making your first guess...");
+        await sendCallsAsync({
+          calls: [
+            { to: USDC.address, data: approveCalldata },
+            { to: CYPHER_CONTRACT_ADDRESS, data: startGameCalldata },
+          ],
+        });
 
-        // Generate hints client-side
-        const target = getTodayTarget();
+        toast.dismiss();
+        toast.success("Submitted. Waiting for confirmations...");
+
+        // Compute target by hash-matching name -> assignedKOLHash
+        const target =
+          (assignedKOLHash && allKOLs.find((k) => k.id === assignedKOLHash)) ||
+          firstGuess;
         const hints = generateHints(firstGuess, target);
         setGuessesAndHints([{ guess: firstGuess, hints }]);
+
+        // Proactively refetch after a short delay (no hash for batch)
+        setTimeout(() => {
+          refetchPlayerData();
+          refetchFinalized();
+          refetchWinnings();
+          setIsLoading(false);
+        }, 2000);
       } catch (err) {
         toast.dismiss();
         const errorMessage =
@@ -190,7 +208,15 @@ export function useCypherGame() {
         setIsLoading(false);
       }
     },
-    [gameId, writeContractAsync]
+    [
+      gameId,
+      sendCallsAsync,
+      refetchPlayerData,
+      refetchFinalized,
+      refetchWinnings,
+      allKOLs,
+      assignedKOLHash,
+    ]
   );
 
   // Submit guess
@@ -206,15 +232,17 @@ export function useCypherGame() {
           address: CYPHER_CONTRACT_ADDRESS,
           abi: CYPHER_ABI,
           functionName: "submitGuess",
-          args: [guess.name],
+          args: [guess.id],
         });
 
         setPendingTxHash(hash);
         toast.dismiss();
         toast.loading("Confirming transaction...");
 
-        // Generate hints client-side
-        const target = getTodayTarget();
+        // Compute target by hash-matching name -> assignedKOLHash
+        const target =
+          (assignedKOLHash && allKOLs.find((k) => k.id === assignedKOLHash)) ||
+          guess;
         const hints = generateHints(guess, target);
         setGuessesAndHints((prev) => [...prev, { guess, hints }]);
       } catch (err) {
@@ -226,7 +254,7 @@ export function useCypherGame() {
         setIsLoading(false);
       }
     },
-    [writeContractAsync]
+    [writeContractAsync, allKOLs, assignedKOLHash]
   );
 
   // Claim reward

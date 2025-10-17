@@ -5,6 +5,7 @@ import type { KOL, PlayerStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface InputControllerProps {
   allKOLs: KOL[];
@@ -125,11 +126,39 @@ export function InputController({
                   "border-b border-border last:border-b-0"
                 )}
               >
-                <div className="font-medium">{kol.name}</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span>{kol.twitterHandle}</span>
-                  <span>•</span>
-                  <span>{kol.attributes.ecosystem}</span>
+                <div className="flex items-center gap-3">
+                  {kol.imageUrl && (
+                    <Image
+                      width={32}
+                      height={32}
+                      src={kol.imageUrl}
+                      alt={kol.name}
+                      className="rounded object-cover"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-2">
+                      <span>{kol.name}</span>
+                      {/* {kol.link && (
+                        <a
+                          href={kol.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View
+                        </a>
+                      )} */}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>{kol.twitterHandle}</span>
+                      <span>•</span>
+                      <span>{kol.attributes.ecosystem}</span>
+                      <span>•</span>
+                      <span>{kol.attributes.association}</span>
+                    </div>
+                  </div>
                 </div>
               </button>
             ))

@@ -1,6 +1,8 @@
 export interface KOL {
   id: `0x${string}`; // keccak256 hash of the full name
   name: string;
+  imageUrl?: string; // absolute or public path
+  link?: string; // external profile URL
   twitterHandle: string;
   attributes: {
     association:

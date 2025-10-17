@@ -1,5 +1,5 @@
 export const CYPHER_CONTRACT_ADDRESS =
-  "0x0D0877adc36E506A9328C100fdae71D743454242" as const; // TODO: Replace with actual deployed contract address
+  "0xE1B67949998f4A6c96A39633F9A52fB863E24Afb" as const; // TODO: Replace with actual deployed contract address
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const CYPHER_ABI = [
@@ -114,10 +114,7 @@ export const CYPHER_ABI = [
   {
     type: "function",
     name: "startGame",
-    inputs: [
-      { name: "_usdcAmount", type: "uint256" },
-      { name: "_firstGuess", type: "string" },
-    ],
+    inputs: [{ name: "_usdcAmount", type: "uint256" }],
     outputs: [],
     stateMutability: "nonpayable",
   },

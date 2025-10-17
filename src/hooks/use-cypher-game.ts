@@ -150,7 +150,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
 
   // Start game
   const startGame = useCallback(
-    async (firstGuess: KOL, usdcAmount: number = 1) => {
+    async (usdcAmount: number = 1) => {
       if (!gameId) {
         toast.error("Game ID not loaded");
         return;
@@ -171,7 +171,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         const startGameCalldata = encodeFunctionData({
           abi: CYPHER_ABI,
           functionName: "startGame",
-          args: [amountWei, firstGuess.id],
+          args: [amountWei],
         });
 
         toast.loading("Making your first guess...");
@@ -185,12 +185,8 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         toast.dismiss();
         toast.success("Submitted. Waiting for confirmations...");
 
-        // Compute target by hash-matching name -> assignedKOLHash
-        const target =
-          (assignedKOLHash && allKOLs.find((k) => k.id === assignedKOLHash)) ||
-          firstGuess;
-        const hints = generateHints(firstGuess, target);
-        setGuessesAndHints([{ guess: firstGuess, hints }]);
+        // No guess made yet; clear any prior hints for a new session
+        setGuessesAndHints([]);
 
         // Proactively refetch after a short delay (no hash for batch)
         setTimeout(() => {
@@ -214,8 +210,6 @@ export function useCypherGame(allKOLs: KOL[] = []) {
       refetchPlayerData,
       refetchFinalized,
       refetchWinnings,
-      allKOLs,
-      assignedKOLHash,
     ]
   );
 

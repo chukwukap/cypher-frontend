@@ -8,7 +8,7 @@ export function getConfig() {
     connectors: [
       baseAccount({
         appName: "Cypher - The Onchain Gauntlet",
-        appLogoUrl: "https://cypher.gg/logo.png",
+        appLogoUrl: "https://onchaincypher.vercel.app/logo.png",
         // @judge: I find this the easiest way to add the subAccounts because it's more  straightforward than the other method. I'm using the WAGMI version of @base-org/account which has support for the subAccounts option. I also didn't use "latest" just in case breaking changes are introduced.
         subAccounts: {
           // @Note: WAGMI version of @base-org/account is overriden with "@base-org/account": "^2.4.0" version which has support for the required API for subAccounts to work with wagmi. I also didn't use "latest" just in case breaking changes are introduced.

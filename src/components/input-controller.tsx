@@ -27,16 +27,16 @@ export function InputController({
   const [amount, setAmount] = useState<string>("1");
 
   const filteredKOLs = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-
     const term = searchTerm.toLowerCase();
-
-    return allKOLs.filter(
-      (kol) =>
-        kol.name.toLowerCase().includes(term) ||
-        kol.twitterHandle.toLowerCase().includes(term) ||
-        kol.attributes.ecosystem.toLowerCase().includes(term)
-    );
+    if (!term) return allKOLs.slice(0, 20);
+    return allKOLs
+      .filter(
+        (kol) =>
+          kol.name.toLowerCase().includes(term) ||
+          kol.twitterHandle.toLowerCase().includes(term) ||
+          kol.attributes.ecosystem.toLowerCase().includes(term)
+      )
+      .slice(0, 20);
   }, [searchTerm, allKOLs]);
 
   const handleKOLClick = async (kol: KOL) => {
@@ -114,7 +114,7 @@ export function InputController({
         />
       </div>
 
-      {showDropdown && searchTerm && !isDisabled && (
+      {showDropdown && !isDisabled && (
         <div className="absolute z-10 mt-2 w-full rounded-lg border border-border bg-background shadow-lg max-h-64 overflow-y-auto">
           {filteredKOLs.length > 0 ? (
             filteredKOLs.map((kol) => (

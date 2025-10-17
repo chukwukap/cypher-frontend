@@ -22,10 +22,10 @@ export function ResultsView({
       <div className="rounded-lg border border-border bg-panel p-8 text-center space-y-4">
         <Clock className="mx-auto h-12 w-12 text-muted-foreground animate-pulse" />
         <div className="space-y-2">
-          <h3 className="text-xl font-semibold">Game In Progress</h3>
+          <h3 className="text-xl font-semibold">You have completed the game</h3>
           <p className="text-sm text-muted-foreground">
-            Results are being calculated. Check back later to see if you won and
-            claim your rewards.
+            Check back later to see if you won and claim your rewards when the
+            game ends for the day.
           </p>
         </div>
       </div>

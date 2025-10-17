@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useReadContract,
-  useWriteContract,
   useWatchContractEvent,
   useWaitForTransactionReceipt,
   useSendCalls,
@@ -16,8 +15,18 @@ import type { KOL, PlayerStatus, GuessWithHints } from "@/lib/types";
 import { generateHints } from "@/lib/hint-generator";
 import { toast } from "sonner";
 
+const useUSDCBalance = (address?: `0x${string}`) => {
+  return useReadContract({
+    address: USDC.address,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+};
+
 export function useCypherGame(allKOLs: KOL[] = []) {
-  const { address } = useAccount();
+  const { addresses, address } = useAccount();
   const [gameId, setGameId] = useState<bigint | null>(null);
   const [playerStatus, setPlayerStatus] = useState<PlayerStatus>("EMPTY");
   const [attempts, setAttempts] = useState(0);
@@ -33,77 +42,63 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     null
   );
 
-  // Get current game ID
   const { data: currentGameIdData } = useReadContract({
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     functionName: "currentGameId",
   });
 
-  // Get player data
   const { data: playerData, refetch: refetchPlayerData } = useReadContract({
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     functionName: "dailyPlayerData",
     args: address && gameId ? [gameId, address] : undefined,
-    query: {
-      enabled: !!address && !!gameId,
-    },
+    query: { enabled: !!address && !!gameId },
   });
 
-  // Get finalized status
   const { data: finalizedData, refetch: refetchFinalized } = useReadContract({
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     functionName: "isFinalized",
     args: gameId ? [gameId] : undefined,
-    query: {
-      enabled: !!gameId,
-    },
+    query: { enabled: !!gameId },
   });
 
-  // Get winnings
   const { data: winningsData, refetch: refetchWinnings } = useReadContract({
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     functionName: "dailyWinnings",
     args: address && gameId ? [gameId, address] : undefined,
-    query: {
-      enabled: !!address && !!gameId,
-    },
+    query: { enabled: !!address && !!gameId },
   });
 
-  // Contract write hooks
-  const { writeContractAsync } = useWriteContract();
   const { sendCallsAsync } = useSendCalls();
 
-  // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
       hash: pendingTxHash || undefined,
+      confirmations: 1,
     });
 
-  // Update state from contract data
   useEffect(() => {
     if (currentGameIdData) {
-      setGameId(currentGameIdData as bigint);
+      setGameId(currentGameIdData);
     }
   }, [currentGameIdData]);
 
   useEffect(() => {
     if (playerData) {
       const [statusData, assignedHash, , , , attemptsData] = playerData as [
-        number, // status
-        `0x${string}`, // assignedKOLHash
-        bigint, // depositAmount
+        number,
+        `0x${string}`,
         bigint,
-        bigint, // startTime
-        bigint, // endTime
-        bigint // finalScore
+        bigint,
+        bigint,
+        bigint,
+        bigint
       ];
       setAttempts(Number(attemptsData));
       setAssignedKOLHash(assignedHash);
-
       const statusMap: Record<number, PlayerStatus> = {
         0: "EMPTY",
         1: "ACTIVE",
@@ -126,7 +121,6 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     }
   }, [winningsData]);
 
-  // Handle transaction confirmation
   useEffect(() => {
     if (isConfirmed && pendingTxHash) {
       toast.success("Transaction confirmed", {
@@ -134,8 +128,6 @@ export function useCypherGame(allKOLs: KOL[] = []) {
       });
       setPendingTxHash(null);
       setIsLoading(false);
-
-      // Refetch all data
       refetchPlayerData();
       refetchFinalized();
       refetchWinnings();
@@ -148,21 +140,29 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     refetchWinnings,
   ]);
 
-  // Start game
+  const { data: balance1 } = useUSDCBalance(addresses?.[0]);
+  const { data: balance2 } = useUSDCBalance(addresses?.[1]);
+
   const startGame = useCallback(
     async (usdcAmount: number = 1) => {
       if (!gameId) {
         toast.error("Game ID not loaded");
         return;
       }
-
       setIsLoading(true);
       setError(null);
-
       try {
         const amountWei = BigInt(Math.floor(usdcAmount * 10 ** USDC.decimals));
 
-        // Batch approve + startGame using useSendCalls
+        if (
+          (!balance1 || balance1 < amountWei) &&
+          (!balance2 || balance2 < amountWei)
+        ) {
+          toast.error("Neither account has enough USDC to start the game.");
+          setIsLoading(false);
+          return;
+        }
+
         const approveCalldata = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
@@ -174,7 +174,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
           args: [amountWei],
         });
 
-        toast.loading("Making your first guess...");
+        toast.loading("Starting game...");
         await sendCallsAsync({
           calls: [
             { to: USDC.address, data: approveCalldata },
@@ -183,12 +183,8 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         });
 
         toast.dismiss();
-        toast.success("Submitted. Waiting for confirmations...");
-
-        // No guess made yet; clear any prior hints for a new session
         setGuessesAndHints([]);
 
-        // Proactively refetch after a short delay (no hash for batch)
         setTimeout(() => {
           refetchPlayerData();
           refetchFinalized();
@@ -196,6 +192,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
           setIsLoading(false);
         }, 2000);
       } catch (err) {
+        console.error("error", err);
         toast.dismiss();
         const errorMessage =
           err instanceof Error ? err.message : "Failed to start game";
@@ -207,39 +204,41 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     [
       gameId,
       sendCallsAsync,
+      balance1,
+      balance2,
       refetchPlayerData,
       refetchFinalized,
       refetchWinnings,
     ]
   );
 
-  // Submit guess
   const submitGuess = useCallback(
     async (guess: KOL) => {
       setIsLoading(true);
       setError(null);
-
+      toast.loading("Submitting guess...");
       try {
-        toast.loading("Submitting guess...");
-
-        const hash = await writeContractAsync({
-          address: CYPHER_CONTRACT_ADDRESS,
+        const submitGuessCalldata = encodeFunctionData({
           abi: CYPHER_ABI,
           functionName: "submitGuess",
-          args: [guess.id],
+          args: [guess.name],
         });
 
-        setPendingTxHash(hash);
-        toast.dismiss();
-        toast.loading("Confirming transaction...");
+        toast.loading("Submitting guess...");
+        await sendCallsAsync({
+          calls: [{ to: CYPHER_CONTRACT_ADDRESS, data: submitGuessCalldata }],
+        });
 
-        // Compute target by hash-matching name -> assignedKOLHash
-        const target =
-          (assignedKOLHash && allKOLs.find((k) => k.id === assignedKOLHash)) ||
-          guess;
-        const hints = generateHints(guess, target);
-        setGuessesAndHints((prev) => [...prev, { guess, hints }]);
+        toast.dismiss();
+        const target = assignedKOLHash
+          ? allKOLs.find((k) => k.id === assignedKOLHash)
+          : undefined;
+        if (target) {
+          const hints = generateHints(guess, target);
+          setGuessesAndHints((prev) => [...prev, { guess, hints }]);
+        }
       } catch (err) {
+        console.error("error", err);
         toast.dismiss();
         const errorMessage =
           err instanceof Error ? err.message : "Failed to submit guess";
@@ -248,33 +247,31 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         setIsLoading(false);
       }
     },
-    [writeContractAsync, allKOLs, assignedKOLHash]
+    [allKOLs, assignedKOLHash, sendCallsAsync]
   );
 
-  // Claim reward
   const claimReward = useCallback(async () => {
     if (!gameId) {
       toast.error("Game ID not loaded");
       return;
     }
-
     setIsLoading(true);
     setError(null);
-
+    toast.loading("Claiming reward...");
     try {
-      toast.loading("Claiming reward...");
-
-      const hash = await writeContractAsync({
-        address: CYPHER_CONTRACT_ADDRESS,
+      const claimRewardCalldata = encodeFunctionData({
         abi: CYPHER_ABI,
         functionName: "claimReward",
         args: [gameId],
       });
-
-      setPendingTxHash(hash);
+      await sendCallsAsync({
+        calls: [{ to: CYPHER_CONTRACT_ADDRESS, data: claimRewardCalldata }],
+      });
       toast.dismiss();
-      toast.loading("Confirming transaction...");
+      toast.success("Reward claimed successfully!");
+      setIsLoading(false);
     } catch (err) {
+      console.error("error", err);
       toast.dismiss();
       const errorMessage =
         err instanceof Error ? err.message : "Failed to claim reward";
@@ -282,15 +279,33 @@ export function useCypherGame(allKOLs: KOL[] = []) {
       toast.error(errorMessage);
       setIsLoading(false);
     }
-  }, [gameId, writeContractAsync]);
+  }, [gameId, sendCallsAsync]);
 
-  // Watch contract events
   useWatchContractEvent({
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     eventName: "GameStarted",
-    onLogs: () => {
-      refetchPlayerData();
+    onLogs: (logs) => {
+      console.log("logs", logs);
+      for (const l of logs) {
+        const args = l.args as {
+          gameId: bigint;
+          player: `0x${string}`;
+          assignedKOLHash: `0x${string}`;
+        };
+        if (!args) continue;
+        if (
+          address &&
+          args.player === address &&
+          gameId !== null &&
+          args.gameId === gameId
+        ) {
+          setPlayerStatus("ACTIVE");
+          setAssignedKOLHash(args.assignedKOLHash);
+          setAttempts(0);
+          setGuessesAndHints([]);
+        }
+      }
     },
   });
 
@@ -298,8 +313,24 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     eventName: "GuessSubmitted",
-    onLogs: () => {
-      refetchPlayerData();
+    onLogs: (logs) => {
+      console.log("logs", logs);
+      for (const l of logs) {
+        const args = l.args as {
+          gameId: bigint;
+          player: `0x${string}`;
+          attempts: bigint;
+        };
+        if (!args) continue;
+        if (
+          address &&
+          args.player === address &&
+          gameId !== null &&
+          args.gameId === gameId
+        ) {
+          setAttempts(Number(args.attempts));
+        }
+      }
     },
   });
 
@@ -307,9 +338,16 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     eventName: "GameFinalized",
-    onLogs: () => {
-      refetchFinalized();
-      refetchWinnings();
+    onLogs: (logs) => {
+      console.log("logs", logs);
+      for (const l of logs) {
+        const args = l.args as { gameId: bigint };
+        if (!args) continue;
+        if (gameId !== null && args.gameId === gameId) {
+          setIsFinalized(true);
+          refetchWinnings();
+        }
+      }
     },
   });
 
@@ -317,9 +355,25 @@ export function useCypherGame(allKOLs: KOL[] = []) {
     address: CYPHER_CONTRACT_ADDRESS,
     abi: CYPHER_ABI,
     eventName: "RewardClaimed",
-    onLogs: () => {
-      refetchWinnings();
-      toast.success("Reward claimed successfully!");
+    onLogs: (logs) => {
+      console.log("logs", logs);
+      for (const l of logs) {
+        const args = l.args as {
+          gameId: bigint;
+          player: `0x${string}`;
+          amount: bigint;
+        };
+        if (!args) continue;
+        if (
+          address &&
+          args.player === address &&
+          gameId !== null &&
+          args.gameId === gameId
+        ) {
+          setWinnings(BigInt(0));
+          toast.success("Reward claimed successfully!");
+        }
+      }
     },
   });
 

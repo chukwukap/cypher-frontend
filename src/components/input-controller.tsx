@@ -11,20 +11,17 @@ interface InputControllerProps {
   allKOLs: KOL[];
   playerStatus: PlayerStatus;
   isLoading: boolean;
-  startGame: (guess: KOL, amount?: number) => Promise<void>;
   submitGuess: (guess: KOL) => Promise<void>;
 }
 
 export function InputController({
   allKOLs,
   playerStatus,
-  isLoading,
-  startGame,
+
   submitGuess,
 }: InputControllerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [amount, setAmount] = useState<string>("1");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const filteredKOLs = useMemo(() => {
@@ -43,45 +40,26 @@ export function InputController({
   const handleKOLClick = async (kol: KOL) => {
     setSearchTerm("");
     setShowDropdown(false);
-    const amt = Math.max(0, Number.parseFloat(amount) || 0);
 
-    if (playerStatus === "EMPTY") {
-      await startGame(kol, amt);
-    } else if (playerStatus === "ACTIVE") {
+    if (playerStatus === "ACTIVE") {
       await submitGuess(kol);
     }
   };
 
   const handleRawGuess = async () => {
     if (!searchTerm.trim()) return;
-    const amt = Math.max(0, Number.parseFloat(amount) || 0);
-
-    // Create a temporary KOL object for raw guesses
-    const rawKOL: KOL = {
-      id: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      name: searchTerm,
-      twitterHandle: "",
-      attributes: {
-        association: "Other",
-        ecosystem: "Ethereum",
-        pfpTheme: "None",
-        followers: 0,
-        age: 0,
-      },
-    };
-
     setSearchTerm("");
     setShowDropdown(false);
-
-    if (playerStatus === "EMPTY") {
-      await startGame(rawKOL, amt);
-    } else if (playerStatus === "ACTIVE") {
-      await submitGuess(rawKOL);
+    if (playerStatus === "ACTIVE") {
+      // Find the KOL by exact name match; if not found, ignore
+      const kol = allKOLs.find(
+        (k) => k.name.toLowerCase() === searchTerm.toLowerCase()
+      );
+      if (kol) await submitGuess(kol);
     }
   };
 
-  const isDisabled =
-    isLoading || playerStatus === "COMPLETED" || playerStatus === "FAILED";
+  const isDisabled = playerStatus === "COMPLETED" || playerStatus === "FAILED";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -97,20 +75,6 @@ export function InputController({
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="mb-3">
-        <Input
-          type="number"
-          inputMode="decimal"
-          step="0.000001"
-          min="0"
-          placeholder="Amount (USDC)"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={isDisabled}
-          className="bg-panel border-border"
-        />
-      </div>
-
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -181,8 +145,7 @@ export function InputController({
               className="w-full px-4 py-3 text-left hover:bg-accent/10 transition-colors"
             >
               <div className="text-sm text-muted-foreground">
-                No matches found. Click to guess &quot;{searchTerm}&quot;
-                anyway.
+                No matches found
               </div>
             </button>
           )}

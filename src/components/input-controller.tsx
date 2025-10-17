@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { KOL, PlayerStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -25,6 +25,7 @@ export function InputController({
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [amount, setAmount] = useState<string>("1");
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const filteredKOLs = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -82,8 +83,20 @@ export function InputController({
   const isDisabled =
     isLoading || playerStatus === "COMPLETED" || playerStatus === "FAILED";
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <div className="mb-3">
         <Input
           type="number"

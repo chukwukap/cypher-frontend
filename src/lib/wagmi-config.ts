@@ -11,7 +11,7 @@ export function getConfig() {
         appLogoUrl: "https://cypher.gg/logo.png",
         // @judge: I find this the easiest way to add the subAccounts because it's more  straightforward than the other method. I'm using the WAGMI version of @base-org/account which has support for the subAccounts option. I also didn't use "latest" just in case breaking changes are introduced.
         subAccounts: {
-          // @ts-expect-error WAGMI version of @base-org/account is overriden with "@base-org/account": "^2.4.0" version which has support for the  required API for subAccounts to work with wagmi. I also didn't use "latest" just in case breaking changes are introduced.
+          // @Note: WAGMI version of @base-org/account is overriden with "@base-org/account": "^2.4.0" version which has support for the required API for subAccounts to work with wagmi. I also didn't use "latest" just in case breaking changes are introduced.
           creation: "on-connect", // Auto-create sub account on connect
           defaultAccount: "sub", // Use sub account for transactions by default
         },

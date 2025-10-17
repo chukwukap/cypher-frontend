@@ -1,32 +1,29 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useAccount, useChainId } from "wagmi"
-import { BASE_SEPOLIA_CHAIN_ID } from "@/lib/contract"
-import { useSubAccount } from "@/hooks/use-sub-account"
-import { useCypherGame } from "@/hooks/use-cypher-game"
-import { fetchKOLs } from "@/lib/kol-data"
-import type { KOL } from "@/lib/types"
+import { useEffect, useState } from "react";
+import { useAccount, useChainId } from "wagmi";
+import { BASE_SEPOLIA_CHAIN_ID } from "@/lib/contract";
+import { useCypherGame } from "@/hooks/use-cypher-game";
+import { fetchKOLs } from "@/lib/kol-data";
+import type { KOL } from "@/lib/types";
 
 // Components
-import { LoadingScreen } from "@/components/loading-screen"
-import { NetworkSwitchModal } from "@/components/network-switch-modal"
-import { ConnectWallet } from "@/components/connect-wallet"
-import { SubAccountSetup } from "@/components/sub-account-setup"
-import { GameHeader } from "@/components/game-header"
-import { HintDisplay } from "@/components/hint-display"
-import { InputController } from "@/components/input-controller"
-import { ResultsView } from "@/components/results-view"
-import { ShareButton } from "@/components/share-button"
+import { LoadingScreen } from "@/components/loading-screen";
+import { NetworkSwitchModal } from "@/components/network-switch-modal";
+import { ConnectWallet } from "@/components/connect-wallet";
+import { GameHeader } from "@/components/game-header";
+import { HintDisplay } from "@/components/hint-display";
+import { InputController } from "@/components/input-controller";
+import { ResultsView } from "@/components/results-view";
+import { ShareButton } from "@/components/share-button";
 
 export default function Home() {
-  const { isConnected } = useAccount()
-  const chainId = useChainId()
-  const [allKOLs, setAllKOLs] = useState<KOL[]>([])
-  const [isLoadingKOLs, setIsLoadingKOLs] = useState(true)
+  const { isConnected } = useAccount();
+  const chainId = useChainId();
+  const [allKOLs, setAllKOLs] = useState<KOL[]>([]);
+  const [isLoadingKOLs, setIsLoadingKOLs] = useState(true);
 
   // Hooks
-  const { createSubAccount, subAccountAddress, isCreating } = useSubAccount()
   const {
     gameId,
     playerStatus,
@@ -38,51 +35,46 @@ export default function Home() {
     startGame,
     submitGuess,
     claimReward,
-  } = useCypherGame()
+  } = useCypherGame();
 
   // Fetch KOL data on mount
   useEffect(() => {
     const loadKOLs = async () => {
       try {
-        const kols = await fetchKOLs()
-        setAllKOLs(kols)
+        const kols = await fetchKOLs();
+        setAllKOLs(kols);
       } catch (error) {
-        console.error("Failed to load KOLs:", error)
+        console.error("Failed to load KOLs:", error);
       } finally {
-        setIsLoadingKOLs(false)
+        setIsLoadingKOLs(false);
       }
-    }
+    };
 
-    loadKOLs()
-  }, [])
+    loadKOLs();
+  }, []);
 
   // Conditional rendering flow (priority order)
 
   // 1. Initial app load - fetching KOL data
   if (isLoadingKOLs) {
-    return <LoadingScreen />
+    return <LoadingScreen />;
   }
 
   // 2. Wrong network
   if (isConnected && chainId !== BASE_SEPOLIA_CHAIN_ID) {
-    return <NetworkSwitchModal />
+    return <NetworkSwitchModal />;
   }
 
   // 3. Wallet disconnected
   if (!isConnected) {
-    return <ConnectWallet />
+    return <ConnectWallet />;
   }
 
-  // 4. Sub-account setup needed
-  if (!subAccountAddress) {
-    return <SubAccountSetup isCreating={isCreating} createSubAccount={createSubAccount} />
-  }
-
-  // 5. Main game view
+  // 4. Main game view
   return (
     <div className="min-h-screen p-4">
       <div className="mx-auto max-w-2xl space-y-6 py-8">
-        <GameHeader gameId={gameId} attempts={attempts} maxAttempts={6} />
+        <GameHeader gameId={gameId} attempts={attempts} maxAttempts={8} />
 
         <div className="space-y-6">
           {/* Input controller */}
@@ -109,7 +101,11 @@ export default function Home() {
 
               {/* Share button (only show when completed) */}
               {playerStatus === "COMPLETED" && (
-                <ShareButton gameId={gameId} guessesAndHints={guessesAndHints} attempts={attempts} />
+                <ShareButton
+                  gameId={gameId}
+                  guessesAndHints={guessesAndHints}
+                  attempts={attempts}
+                />
               )}
             </div>
           )}
@@ -118,7 +114,8 @@ export default function Home() {
           {playerStatus === "ACTIVE" && (
             <div className="rounded-lg border border-border bg-panel p-4 text-center">
               <p className="text-sm text-muted-foreground">
-                {6 - attempts} {6 - attempts === 1 ? "attempt" : "attempts"} remaining
+                {8 - attempts} {8 - attempts === 1 ? "attempt" : "attempts"}{" "}
+                remaining
               </p>
             </div>
           )}
@@ -126,9 +123,11 @@ export default function Home() {
 
         {/* Footer */}
         <div className="pt-8 text-center">
-          <p className="text-xs text-muted-foreground">Powered by Base • Gasless transactions via sub-accounts</p>
+          <p className="text-xs text-muted-foreground">
+            Powered by Base • Gasless transactions via sub-accounts
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

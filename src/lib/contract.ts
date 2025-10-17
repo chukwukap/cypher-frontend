@@ -1,5 +1,6 @@
-export const CYPHER_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000" as const // TODO: Replace with actual deployed contract address
-export const BASE_SEPOLIA_CHAIN_ID = 84532
+export const CYPHER_CONTRACT_ADDRESS =
+  "0x3e1044F4EA99b562B32725479424E9F1b650652f" as const; // TODO: Replace with actual deployed contract address
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const CYPHER_ABI = [
   {
@@ -33,7 +34,7 @@ export const CYPHER_ABI = [
   {
     type: "function",
     name: "addKOL",
-    inputs: [{ name: "kolHash", type: "bytes32" }],
+    inputs: [{ name: "_kolHash", type: "bytes32" }],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -59,8 +60,13 @@ export const CYPHER_ABI = [
       { name: "player", type: "address" },
     ],
     outputs: [
-      { name: "attempts", type: "uint8" },
       { name: "status", type: "uint8" },
+      { name: "assignedKOLHash", type: "bytes32" },
+      { name: "depositAmount", type: "uint256" },
+      { name: "startTime", type: "uint256" },
+      { name: "endTime", type: "uint256" },
+      { name: "attempts", type: "uint256" },
+      { name: "finalScore", type: "uint256" },
     ],
     stateMutability: "view",
   },
@@ -79,7 +85,7 @@ export const CYPHER_ABI = [
     name: "finalizeGame",
     inputs: [
       { name: "gameId", type: "uint256" },
-      { name: "winners", type: "address[]" },
+      { name: "allPlayers", type: "address[]" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -95,8 +101,8 @@ export const CYPHER_ABI = [
     type: "function",
     name: "startGame",
     inputs: [
-      { name: "gameId", type: "uint256" },
-      { name: "guess", type: "string" },
+      { name: "_usdcAmount", type: "uint256" },
+      { name: "_firstGuess", type: "string" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -104,7 +110,7 @@ export const CYPHER_ABI = [
   {
     type: "function",
     name: "submitGuess",
-    inputs: [{ name: "guess", type: "string" }],
+    inputs: [{ name: "_guess", type: "string" }],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -114,6 +120,7 @@ export const CYPHER_ABI = [
     inputs: [
       { name: "gameId", type: "uint256", indexed: true },
       { name: "player", type: "address", indexed: true },
+      { name: "assignedKOLHash", type: "bytes32", indexed: false },
     ],
   },
   {
@@ -122,13 +129,17 @@ export const CYPHER_ABI = [
     inputs: [
       { name: "gameId", type: "uint256", indexed: true },
       { name: "player", type: "address", indexed: true },
-      { name: "guess", type: "string" },
+      { name: "attempts", type: "uint256" },
     ],
   },
   {
     type: "event",
     name: "GameFinalized",
-    inputs: [{ name: "gameId", type: "uint256", indexed: true }],
+    inputs: [
+      { name: "gameId", type: "uint256", indexed: true },
+      { name: "prizePool", type: "uint256", indexed: false },
+      { name: "finalizer", type: "address", indexed: false },
+    ],
   },
   {
     type: "event",
@@ -139,4 +150,4 @@ export const CYPHER_ABI = [
       { name: "amount", type: "uint256" },
     ],
   },
-] as const
+] as const;

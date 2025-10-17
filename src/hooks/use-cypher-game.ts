@@ -9,6 +9,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { CYPHER_CONTRACT_ADDRESS, CYPHER_ABI } from "@/lib/contract";
+import { USDC, erc20Abi } from "@/lib/usdc";
 import type { KOL, PlayerStatus, GuessWithHints } from "@/lib/types";
 import { generateHints } from "@/lib/hint-generator";
 import { getTodayTarget } from "@/lib/kol-data";
@@ -86,8 +87,16 @@ export function useCypherGame() {
 
   useEffect(() => {
     if (playerData) {
-      const [attemptsData, statusData] = playerData as [number, number];
-      setAttempts(attemptsData);
+      const [statusData, , , , , attemptsData] = playerData as [
+        number,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint
+      ];
+      setAttempts(Number(attemptsData));
 
       const statusMap: Record<number, PlayerStatus> = {
         0: "EMPTY",
@@ -135,7 +144,7 @@ export function useCypherGame() {
 
   // Start game
   const startGame = useCallback(
-    async (firstGuess: KOL) => {
+    async (firstGuess: KOL, usdcAmount: number = 1) => {
       if (!gameId) {
         toast.error("Game ID not loaded");
         return;
@@ -145,13 +154,23 @@ export function useCypherGame() {
       setError(null);
 
       try {
+        toast.loading("Approving USDC...");
+        const amountWei = BigInt(Math.floor(usdcAmount * 10 ** USDC.decimals));
+        await writeContractAsync({
+          address: USDC.address,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [CYPHER_CONTRACT_ADDRESS, amountWei],
+        });
+
+        toast.dismiss();
         toast.loading("Starting game...");
 
         const hash = await writeContractAsync({
           address: CYPHER_CONTRACT_ADDRESS,
           abi: CYPHER_ABI,
           functionName: "startGame",
-          args: [gameId, firstGuess.name],
+          args: [amountWei, firstGuess.name],
         });
 
         setPendingTxHash(hash);

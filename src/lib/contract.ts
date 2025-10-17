@@ -1,5 +1,5 @@
-export const CYPHER_CONTRACT_ADDRESS =
-  "0x4AF112f326638ff9f0A5564443b645F08c4eC163" as const; // TODO: Replace with actual deployed contract address
+export const CYPHER_CONTRACT_ADDRESS = process.env
+  .NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`; // TODO: Replace with actual deployed contract address
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const CYPHER_ABI = [

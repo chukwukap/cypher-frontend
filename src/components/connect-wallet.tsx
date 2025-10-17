@@ -21,9 +21,9 @@ export function ConnectWallet() {
         <div className="rounded-lg border border-border bg-panel p-8 space-y-4">
           <Wallet className="mx-auto h-12 w-12 text-accent" />
           <div className="space-y-2">
-            <h2 className="text-xl font-semibold">Connect Your Wallet</h2>
+            <h2 className="text-xl font-semibold">Connect Your Base Account</h2>
             <p className="text-sm text-muted-foreground">
-              Connect your wallet to start playing the daily guessing game
+              Connect your Base account to start playing the daily guessing game
             </p>
           </div>
 

@@ -193,7 +193,7 @@ export function useCypherGame(allKOLs: KOL[] = []) {
         const calldata = encodeFunctionData({
           abi: CYPHER_ABI,
           functionName: "submitGuess",
-          args: [guess.name],
+          args: [guess.id],
         });
 
         const hash = await sendTransactionAsync({

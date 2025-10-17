@@ -121,7 +121,7 @@ export const CYPHER_ABI = [
   {
     type: "function",
     name: "submitGuess",
-    inputs: [{ name: "_guess", type: "string" }],
+    inputs: [{ name: "_guessHash", type: "bytes32" }],
     outputs: [],
     stateMutability: "nonpayable",
   },
